@@ -168,4 +168,56 @@ class LoteServiceTest {
         assertThatThrownBy(() -> loteService.atualizarStatus(99L, StatusLote.EXPORTADO))
                 .isInstanceOf(LoteNaoEncontradoException.class);
     }
+
+    @Test
+    void atualizarStatus_deRejeitadoParaPendente_devePermitir() {
+        loteExemplo.setStatus(StatusLote.REJEITADO);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(loteExemplo));
+        when(loteRepository.save(loteExemplo)).thenReturn(loteExemplo);
+
+        assertThatNoException().isThrownBy(() -> loteService.atualizarStatus(1L, StatusLote.PENDENTE));
+        verify(loteRepository).save(loteExemplo);
+    }
+
+    @Test
+    void listarLotes_paginaVazia_deveRetornarConteudoVazio() {
+        Page<Lote> paginaVazia = new PageImpl<>(List.of(), pageable, 0);
+        when(loteRepository.findAll(pageable)).thenReturn(paginaVazia);
+
+        PagedResponse<LoteResponse> response = loteService.listarLotes(null, null, pageable);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        assertThat(response.getTotalPages()).isZero();
+    }
+
+    @Test
+    void criarLote_comMultiplosDocumentos_deveSalvarTodos() {
+        Documento doc2 = new Documento();
+        doc2.setId(2L);
+        doc2.setTipo("CPF");
+        doc2.setNome("cpf.pdf");
+        doc2.setLote(loteExemplo);
+        loteExemplo.getDocumentos().add(doc2);
+
+        CriarDocumentoRequest docRequest1 = new CriarDocumentoRequest();
+        docRequest1.setTipo("RG");
+        docRequest1.setNome("rg_frente.jpg");
+
+        CriarDocumentoRequest docRequest2 = new CriarDocumentoRequest();
+        docRequest2.setTipo("CPF");
+        docRequest2.setNome("cpf.pdf");
+
+        CriarLoteRequest request = new CriarLoteRequest();
+        request.setOperador("joao.silva");
+        request.setProcesso("ABERTURA_CONTA");
+        request.setDocumentos(List.of(docRequest1, docRequest2));
+
+        when(loteRepository.save(any(Lote.class))).thenReturn(loteExemplo);
+
+        LoteResponse response = loteService.criarLote(request);
+
+        assertThat(response.getDocumentos()).hasSize(2);
+        assertThat(response.getDocumentos()).extracting("tipo").containsExactly("RG", "CPF");
+    }
 }

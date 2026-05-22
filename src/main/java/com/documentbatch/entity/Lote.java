@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "lote")
+@Table(name = "tb_lote")
 @EntityListeners(EntityCreateUpdateListener.class)
 @Getter
 @Setter
